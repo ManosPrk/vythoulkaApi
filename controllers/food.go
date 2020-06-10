@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/manosprk/vythoulka_api/models"
@@ -27,7 +28,7 @@ func (fc *foodController) GetIndexHandler(w http.ResponseWriter, r *http.Request
 	switch {
 	case food.Name != "":
 		fc.getByName(food, w)
-	case food.NameGR != "":
+	case food.NameGr != "":
 		fc.getByNameGr(food, w)
 	default:
 		fc.getAll(w, r)
@@ -45,7 +46,8 @@ func (fc *foodController) getAll(w http.ResponseWriter, r *http.Request) {
 
 func (fc *foodController) getByApiId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	food, err := models.GetFoodById(vars["id"])
+	id, err := strconv.Atoi(vars["id"])
+	food, err := models.GetFoodById(id)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -63,18 +65,18 @@ func (fc *foodController) getByName(food *models.Food, w http.ResponseWriter) {
 	encodeResponseAsJSON(foods, w)
 }
 
-func (fc *foodController) getByFilter(food *models.Food, w http.ResponseWriter) {
-	foods, err := models.GetFoodsByNameGr(food.NameGR)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
-		return
-	}
-	encodeResponseAsJSON(foods, w)
-}
+// func (fc *foodController) getByFilter(food *models.Food, w http.ResponseWriter) {
+// 	foods, err := models.GetFoodsByNameGr(food.NameGR)
+// 	if err != nil {
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		w.Write([]byte(err.Error()))
+// 		return
+// 	}
+// 	encodeResponseAsJSON(foods, w)
+// }
 
 func (fc *foodController) getByNameGr(food *models.Food, w http.ResponseWriter) {
-	foods, err := models.GetFoodsByNameGr(food.NameGR)
+	foods, err := models.GetFoodsByNameGr(food.NameGr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))

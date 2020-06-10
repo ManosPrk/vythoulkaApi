@@ -14,9 +14,13 @@ func RegisterControllers() {
 	router.StrictSlash(true)
 	router.Use(ContentTypeMiddleware)
 
-	subrouter := router.PathPrefix("/foods").Subrouter()
+	foodSubrouter := router.PathPrefix("/foods").Subrouter()
+	nutrientSubrouter := router.PathPrefix("/nutrients").Subrouter()
+	nutrientPortionSubrouter := router.PathPrefix("/nutrientportions").Subrouter()
 
-	newFoodController(subrouter)
+	newFoodController(foodSubrouter)
+	newNutrientController(nutrientSubrouter)
+	newNutrientPortionController(nutrientPortionSubrouter)
 
 	http.Handle("/", router)
 }
