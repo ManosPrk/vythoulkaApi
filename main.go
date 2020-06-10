@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	models.NewDB("root:19121991@tcp(127.0.0.1:3308)/vythoulka")
 	controllers.RegisterControllers()
+	models.NewGormDb("root:19121991@tcp(127.0.0.1:3308)/vythoulka?charset=utf8&parseTime=True&loc=Local")
 	http.ListenAndServe(":3000", nil)
 }
