@@ -9,13 +9,3 @@ type FoodGroup struct {
 func (FoodGroup) TableName() string {
 	return "foodgroups"
 }
-
-func newFoodGroup() *FoodGroup {
-	return &FoodGroup{}
-}
-
-func GetFoodGroups() ([]*FoodGroup, error) {
-	fdg := make([]*FoodGroup, 0)
-	VDB.Limit(10).Find(&fdg)
-	return fdg, nil
-}

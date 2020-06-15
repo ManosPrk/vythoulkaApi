@@ -9,7 +9,6 @@ type NutrientPortion struct {
 	NutrientID int    `gorm:"column:NutrientID"`
 	Nutrient   Nutrient
 	FoodID     int `gorm:"column:FoodID"`
-	Food       Food
 }
 
 func (NutrientPortion) TableName() string {
@@ -30,4 +29,12 @@ func GetNutrientPortionById(id string) (*NutrientPortion, error) {
 		return nil, result.Error
 	}
 	return ntp, nil
+}
+
+func GetNutrientPortionsByFoodId(id int) ([]*NutrientPortion, error) {
+	nutrientPortions := make([]*NutrientPortion, 0)
+	if result := VDB.Preload("Nutrient").Where("FoodID = ?", id).Find(&nutrientPortions); result.Error != nil {
+		return nil, result.Error
+	}
+	return nutrientPortions, nil
 }

@@ -1,47 +1,43 @@
 package controllers
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
 	"github.com/manosprk/vythoulka_api/models"
+)
+
+const (
+	name   = "name"
+	nameGr = "nameGr"
 )
 
 type foodController struct {
 	foodRouter *mux.Router
 }
 
+type foodRequest struct {
+	Name   string `schema:"name"`
+	NameGr string `schema:"nameGR"`
+	Offset int    `schema:"offset"`
+	Limit  int    `validate:"required,min=1,max=10" schema:"limit"`
+}
+
 func (fc *foodController) SetupRouter() {
-	fc.foodRouter.HandleFunc("/", fc.GetIndexHandler)
+	fc.foodRouter.Path("/").
+		Queries(name, "{"+name+"}").
+		HandlerFunc(fc.getByName).
+		Name(name)
+
+	fc.foodRouter.Path("/").
+		Queries(nameGr, "{"+nameGr+"}").
+		HandlerFunc(fc.getByNameGr).
+		Name(nameGr)
+
 	fc.foodRouter.HandleFunc("/{id:[0-9]+}", fc.getByApiId)
-}
-
-func (fc *foodController) GetIndexHandler(w http.ResponseWriter, r *http.Request) {
-	food, err := fc.parseRequest(r)
-	if err != nil && err.Error() != "EOF" {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
-	}
-	switch {
-	case food.Name != "":
-		fc.getByName(food, w)
-	case food.NameGr != "":
-		fc.getByNameGr(food, w)
-	default:
-		fc.getAll(w, r)
-	}
-}
-
-func (fc *foodController) getAll(w http.ResponseWriter, r *http.Request) {
-	foods, err := models.GetFoods()
-	if err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	encodeResponseAsJSON(foods, w)
 }
 
 func (fc *foodController) getByApiId(w http.ResponseWriter, r *http.Request) {
@@ -55,8 +51,15 @@ func (fc *foodController) getByApiId(w http.ResponseWriter, r *http.Request) {
 	encodeResponseAsJSON(food, w)
 }
 
-func (fc *foodController) getByName(food *models.Food, w http.ResponseWriter) {
-	foods, err := models.GetFoodsByName(food.Name)
+func (fc *foodController) getByName(w http.ResponseWriter, r *http.Request) {
+	fr, err := fc.parseRequest(r)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	foods, err := models.GetFoodsByName(fr.Name, fr.Limit, fr.Offset)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -65,18 +68,14 @@ func (fc *foodController) getByName(food *models.Food, w http.ResponseWriter) {
 	encodeResponseAsJSON(foods, w)
 }
 
-// func (fc *foodController) getByFilter(food *models.Food, w http.ResponseWriter) {
-// 	foods, err := models.GetFoodsByNameGr(food.NameGR)
-// 	if err != nil {
-// 		w.WriteHeader(http.StatusInternalServerError)
-// 		w.Write([]byte(err.Error()))
-// 		return
-// 	}
-// 	encodeResponseAsJSON(foods, w)
-// }
+func (fc *foodController) getByNameGr(w http.ResponseWriter, r *http.Request) {
+	fr, err := fc.parseRequest(r)
+	if err != nil && err.Error() != "EOF" {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+	}
 
-func (fc *foodController) getByNameGr(food *models.Food, w http.ResponseWriter) {
-	foods, err := models.GetFoodsByNameGr(food.NameGr)
+	foods, err := models.GetFoodsByNameGr(fr.NameGr, fr.Limit, fr.Offset)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -85,14 +84,22 @@ func (fc *foodController) getByNameGr(food *models.Food, w http.ResponseWriter) 
 	encodeResponseAsJSON(foods, w)
 }
 
-func (fc *foodController) parseRequest(r *http.Request) (*models.Food, error) {
-	dec := json.NewDecoder(r.Body)
-	var food models.Food
-	err := dec.Decode(&food)
+func (fc *foodController) parseRequest(r *http.Request) (*foodRequest, error) {
+	var fr foodRequest
+	err := schema.NewDecoder().Decode(&fr, r.URL.Query())
+
 	if err != nil {
-		return &models.Food{}, err
+		return &foodRequest{}, err
 	}
-	return &food, nil
+
+	v := validator.New()
+
+	err = v.Struct(fr)
+	if err != nil {
+		return &foodRequest{}, err
+	}
+
+	return &fr, nil
 }
 
 func newFoodController(subrouter *mux.Router) {

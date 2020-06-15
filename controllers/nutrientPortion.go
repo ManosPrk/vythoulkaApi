@@ -1,20 +1,33 @@
 package controllers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
 	"github.com/manosprk/vythoulka_api/models"
+)
+
+const (
+	foodId = "foodId"
 )
 
 type nutrientPortionController struct {
 	nutrientPortionRouter *mux.Router
 }
 
+type nutrientPortionRequest struct {
+	FoodId string `schema:"foodId"`
+}
+
 func (ntp *nutrientPortionController) SetupRouter() {
-	ntp.nutrientPortionRouter.HandleFunc("/", ntp.getAll)
+	ntp.nutrientPortionRouter.Path("/").
+		Queries(foodId, "{"+foodId+"}").
+		HandlerFunc(ntp.getByFoodId).
+		Name(foodId)
+
 	ntp.nutrientPortionRouter.HandleFunc("/{id:[0-9]+}", ntp.getById)
 }
 
@@ -37,14 +50,39 @@ func (ntp *nutrientPortionController) getById(w http.ResponseWriter, r *http.Req
 	encodeResponseAsJSON(nutrientPortion, w)
 }
 
-func (ntp *nutrientPortionController) parseRequest(r *http.Request) (*models.NutrientPortion, error) {
-	dec := json.NewDecoder(r.Body)
-	var nutrient models.NutrientPortion
-	err := dec.Decode(&nutrient)
+func (ntp *nutrientPortionController) getByFoodId(w http.ResponseWriter, r *http.Request) {
+	fr, err := ntp.parseRequest(r)
 	if err != nil {
-		return &models.NutrientPortion{}, err
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
-	return &nutrient, nil
+
+	foodId, err := strconv.Atoi(fr.FoodId)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	nutrientPortions, err := models.GetNutrientPortionsByFoodId(foodId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println(err.Error())
+		return
+	}
+
+	encodeResponseAsJSON(nutrientPortions, w)
+}
+
+func (ntp *nutrientPortionController) parseRequest(r *http.Request) (*nutrientPortionRequest, error) {
+	var ntpr nutrientPortionRequest
+
+	err := schema.NewDecoder().Decode(&ntpr, r.URL.Query())
+	if err != nil {
+		return &nutrientPortionRequest{}, err
+	}
+
+	return &ntpr, nil
 }
 
 func newNutrientPortionController(subrouter *mux.Router) {
